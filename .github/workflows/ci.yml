@@ -1,0 +1,54 @@
+name: CI
+
+# Runs on every push/PR to branch 'main'
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  # 1st job - check code formatting
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+
+    steps:
+      # Get code from repository
+      - uses: actions/checkout@v4
+
+      # Install .Net 9
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+
+      # Fails when developer didn't format code before pushing PR
+      - name: Check formatting
+        run: dotnet format --verify-no-changes
+
+  # 2nd job - build project and run tests
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    # Runs only after format step is positive
+    needs: format
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      # Restore NuGet packages
+      - name: Restore dependencies
+        run: dotnet restore
+
+      # Build solution in release mode
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # Run every test without rebuilding application, TODO: after creating tests 
+      # - name: Test
+      #   run: dotnet test --no-build --configuration Release
