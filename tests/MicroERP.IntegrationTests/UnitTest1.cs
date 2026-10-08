@@ -1,4 +1,4 @@
-﻿namespace MicroERP.IntegrationTests;
+namespace MicroERP.IntegrationTests;
 
 public class UnitTest1
 {

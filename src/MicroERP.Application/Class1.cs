@@ -1,4 +1,4 @@
-﻿namespace MicroERP.Application;
+namespace MicroERP.Application;
 
 public class Class1
 {

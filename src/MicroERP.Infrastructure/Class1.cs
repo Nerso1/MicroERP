@@ -1,4 +1,4 @@
-﻿namespace MicroERP.Infrastructure;
+namespace MicroERP.Infrastructure;
 
 public class Class1
 {
