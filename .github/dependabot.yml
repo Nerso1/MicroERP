@@ -1,0 +1,8 @@
+version: 2
+
+updates:
+  # Monitor NuGet packages - create PR when new version comes out
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
