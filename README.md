@@ -1,6 +1,7 @@
 # MicroERP
 
 ![CI](https://github.com/Nerso1/MicroERP/actions/workflows/ci.yml/badge.svg)
+![CodeQL](https://github.com/Nerso1/MicroERP/actions/workflows/codeql.yml/badge.svg)
 
 Warehouse & inventory REST API built with ASP.NET Core 10 and Clean Architecture.
 
