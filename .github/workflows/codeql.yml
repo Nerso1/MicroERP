@@ -1,0 +1,41 @@
+name: CodeQL
+
+# Runs after push to main, PR to main, and every Sunday at 02:00 UTC
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Sunday at 02:00 UTC
+    - cron: '0 2 * * 0'
+
+jobs:
+  analyze:
+    name: Analyze (C#)
+    runs-on: ubuntu-latest
+
+    # Permissions needed by CodeQL to write results to the Security tab 
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Initialize the CodeQL engine for C#
+      # CodeQL automatically detects how to build the project (autobuild)
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+
+      # Automatically build the project using CodeQL
+      # (alternatively, you can use dotnet build manually)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      # Perform the analysis and send the results to the Security → Code scanning tab
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
