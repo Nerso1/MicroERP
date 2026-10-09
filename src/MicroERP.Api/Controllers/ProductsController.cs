@@ -9,17 +9,20 @@ using MicroERP.Application.StockLevels.Queries.GetStockByProduct;
 
 namespace MicroERP.Api.Controllers;
 
+/// <summary>Manages products.</summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
     private readonly IMediator _mediator;
 
+    /// <inheritdoc />
     public ProductsController(IMediator mediator)
     {
         _mediator = mediator;
     }
 
+    /// <summary>Returns a paginated list of products.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -30,6 +33,7 @@ public class ProductsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Returns a single product by ID.</summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -37,6 +41,7 @@ public class ProductsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Creates a new product.</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateProductCommand command)
     {
@@ -44,6 +49,7 @@ public class ProductsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id }, id);
     }
 
+    /// <summary>Updates an existing product.</summary>
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductCommand command)
     {
@@ -54,6 +60,7 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Deletes a product by ID.</summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -61,6 +68,7 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Returns stock levels for a product across all warehouses.</summary>
     [HttpGet("{id}/stock")]
     public async Task<IActionResult> GetStock(int id)
     {

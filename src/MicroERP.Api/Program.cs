@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentValidation;
+using MicroERP.Api.Middleware;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Infrastructure;
 
@@ -28,6 +29,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.MapControllers();
 
