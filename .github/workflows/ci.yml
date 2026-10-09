@@ -50,5 +50,5 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       # Run every test without rebuilding application, TODO: after creating tests 
-      # - name: Test
-      #   run: dotnet test --no-build --configuration Release
+      - name: Test
+        run: dotnet test --no-build --configuration Release
