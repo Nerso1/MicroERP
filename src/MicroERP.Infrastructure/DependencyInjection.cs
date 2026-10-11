@@ -1,3 +1,4 @@
+using MicroERP.Application.Common;
 using MicroERP.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,9 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
+
+        services.AddScoped<IAppDbContext>(sp =>
+            sp.GetRequiredService<AppDbContext>());
 
         return services;
     }
