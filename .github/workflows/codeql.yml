@@ -24,6 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Install .NET 10 so autobuild can build net10.0 projects
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
       # Initialize the CodeQL engine for C#
       # CodeQL automatically detects how to build the project (autobuild)
       - name: Initialize CodeQL

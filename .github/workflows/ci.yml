@@ -1,6 +1,6 @@
 name: CI
 
-# Runs on every push/PR to branch 'main'
+# Runs on push to any branch and on PRs to main
 on:
   push:
   pull_request:
@@ -16,11 +16,11 @@ jobs:
       # Get code from repository
       - uses: actions/checkout@v4
 
-      # Install .Net 9
+      # Install .Net 10
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
 
       # Fails when developer didn't format code before pushing PR
       - name: Check formatting
@@ -49,6 +49,6 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      # Run every test without rebuilding application, TODO: after creating tests 
+      # Run every test without rebuilding application
       - name: Test
         run: dotnet test --no-build --configuration Release
