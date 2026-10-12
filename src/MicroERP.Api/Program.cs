@@ -4,6 +4,7 @@ using MicroERP.Api.Middleware;
 using MicroERP.Application.Common.Behaviors;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Infrastructure;
+using MicroERP.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await app.Services.ApplyMigrationsAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
