@@ -2,6 +2,7 @@
 using System.Text.Json;
 using FluentValidation;
 using MicroERP.Domain.Exceptions;
+using MicroERP.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroERP.Api.Middleware;
@@ -43,6 +44,10 @@ public class GlobalExceptionHandlingMiddleware
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(problem));
+        }
+        catch (ConflictException ex)
+        {
+            await WriteProblemDetails(context, StatusCodes.Status409Conflict, ex.Message);
         }
         catch (Exception)
         {

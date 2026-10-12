@@ -1,6 +1,8 @@
 using MicroERP.Application.Common;
+using MicroERP.Application.Common.Exceptions;
 using MicroERP.Domain.Entities;
 using MicroERP.Domain.Interfaces;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace MicroERP.Infrastructure.Persistence;
@@ -15,7 +17,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<StockLevel> StockLevels => Set<StockLevel>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
 
@@ -28,8 +30,21 @@ public class AppDbContext : DbContext, IAppDbContext
                 entry.Entity.UpdatedAt = now;
         }
 
-        return base.SaveChangesAsync(cancellationToken);
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw new ConflictException(
+                "A record with the same unique value already exists.", ex);
+        }
     }
+
+    // 2601 = duplicate key in unique index, 2627 = unique constraint violation
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
+        ex.InnerException is SqlException { Number: 2601 or 2627 };
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
