@@ -45,8 +45,8 @@ public class AppDbContext : DbContext, IAppDbContext
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
-        ex.InnerException is SqlException 
-            { Number: SqlErrorDuplicateKeyInUniqueIndex or SqlErrorUniqueConstraintViolation };
+        ex.InnerException is SqlException
+        { Number: SqlErrorDuplicateKeyInUniqueIndex or SqlErrorUniqueConstraintViolation };
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

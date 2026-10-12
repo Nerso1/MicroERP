@@ -1,8 +1,8 @@
 #pragma warning disable CS1591
 using System.Text.Json;
 using FluentValidation;
-using MicroERP.Domain.Exceptions;
 using MicroERP.Application.Common.Exceptions;
+using MicroERP.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroERP.Api.Middleware;

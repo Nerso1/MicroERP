@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using MicroERP.Application.Common;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Application.Products.Queries.GetProducts;
 using MicroERP.Domain.Entities;
 using MicroERP.IntegrationTests.Common;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace MicroERP.IntegrationTests.Products;

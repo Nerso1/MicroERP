@@ -1,9 +1,9 @@
 using System.Reflection;
 using FluentValidation;
 using MicroERP.Api.Middleware;
+using MicroERP.Application.Common.Behaviors;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Infrastructure;
-using MicroERP.Application.Common.Behaviors;
 
 var builder = WebApplication.CreateBuilder(args);
 
