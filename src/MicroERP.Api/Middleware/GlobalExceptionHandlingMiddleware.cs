@@ -1,6 +1,7 @@
 #pragma warning disable CS1591
 using System.Text.Json;
 using FluentValidation;
+using MicroERP.Application.Common.Exceptions;
 using MicroERP.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,6 +44,10 @@ public class GlobalExceptionHandlingMiddleware
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(problem));
+        }
+        catch (ConflictException ex)
+        {
+            await WriteProblemDetails(context, StatusCodes.Status409Conflict, ex.Message);
         }
         catch (Exception)
         {

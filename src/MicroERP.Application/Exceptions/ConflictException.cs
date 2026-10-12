@@ -1,0 +1,9 @@
+namespace MicroERP.Application.Common.Exceptions;
+
+public class ConflictException : Exception
+{
+    public ConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
