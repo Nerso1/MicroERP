@@ -1,8 +1,9 @@
 name: CI
 
-# Runs on push to any branch and on PRs to main
+# Runs on PRs to main and after merge to main
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
 
