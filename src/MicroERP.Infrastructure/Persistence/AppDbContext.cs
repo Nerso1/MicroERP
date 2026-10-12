@@ -9,6 +9,9 @@ namespace MicroERP.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext, IAppDbContext
 {
+    private const int SqlErrorDuplicateKeyInUniqueIndex = 2601;
+    private const int SqlErrorUniqueConstraintViolation = 2627;
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -41,9 +44,9 @@ public class AppDbContext : DbContext, IAppDbContext
         }
     }
 
-    // 2601 = duplicate key in unique index, 2627 = unique constraint violation
     private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
-        ex.InnerException is SqlException { Number: 2601 or 2627 };
+        ex.InnerException is SqlException 
+            { Number: SqlErrorDuplicateKeyInUniqueIndex or SqlErrorUniqueConstraintViolation };
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
