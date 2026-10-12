@@ -3,12 +3,15 @@ using FluentValidation;
 using MicroERP.Api.Middleware;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Infrastructure;
+using MicroERP.Application.Common.Behaviors;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(CreateProductCommand).Assembly));
-
+{
+    cfg.RegisterServicesFromAssembly(typeof(CreateProductCommand).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
 builder.Services.AddValidatorsFromAssembly(typeof(CreateProductCommand).Assembly);
 
 builder.Services.AddInfrastructure(builder.Configuration);
