@@ -217,3 +217,7 @@ Cloud deployment (Stage 2) will use App Service settings / Key Vault instead.
 - [ ] **Stage 2 - Azure:** Service Bus (low-stock alerts), Azure Function, App Service + Azure SQL deployment
 - [ ] **Stage 3 - Auth:** ASP.NET Identity + JWT
 - [ ] **Stage 4 - Extras:** stock movements with transactions, Serilog, OpenTelemetry, rate limiting, CORS
+
+## License
+
+[MIT](LICENSE)
