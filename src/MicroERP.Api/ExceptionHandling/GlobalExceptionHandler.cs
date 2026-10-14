@@ -29,8 +29,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         if (problemDetails.Status == StatusCodes.Status500InternalServerError)
         {
-            _logger.LogError(exception, "Unhandled exception while processing {Method} {Path}",
-                httpContext.Request.Method, httpContext.Request.Path);
+            // Request path and TraceId are already in the logging scope - don't put request data in the message.
+            _logger.LogError(exception, "Unhandled exception while processing the request");
         }
 
         httpContext.Response.StatusCode = problemDetails.Status!.Value;
