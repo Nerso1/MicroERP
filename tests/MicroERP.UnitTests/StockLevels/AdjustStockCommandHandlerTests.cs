@@ -39,7 +39,7 @@ public class AdjustStockCommandHandlerTests
         var result = await _handler.Handle(
             new AdjustStockCommand(ProductId, WarehouseId, change), CancellationToken.None);
 
-        result.Should().Be(initial + change);
+        result.Quantity.Should().Be(initial + change);
         _publisherMock.Verify(p => p.PublishAsync(
                 It.Is<StockLowAlertMessage>(m =>
                     m.ProductId == ProductId &&
@@ -92,7 +92,7 @@ public class AdjustStockCommandHandlerTests
         var result = await _handler.Handle(
             new AdjustStockCommand(ProductId, WarehouseId, -3), CancellationToken.None);
 
-        result.Should().Be(9);
+        result.Quantity.Should().Be(9);
         _contextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

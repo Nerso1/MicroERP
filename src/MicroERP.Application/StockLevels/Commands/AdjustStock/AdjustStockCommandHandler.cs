@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MicroERP.Application.StockLevels.Commands.AdjustStock;
 
-public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, int>
+public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, AdjustStockResult>
 {
     public const int LowStockThreshold = 10;
 
@@ -26,7 +26,7 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, int
         _logger = logger;
     }
 
-    public async Task<int> Handle(AdjustStockCommand request, CancellationToken ct)
+    public async Task<AdjustStockResult> Handle(AdjustStockCommand request, CancellationToken ct)
     {
         var stockLevel = await _context.StockLevels
             .FirstOrDefaultAsync(s => s.ProductId == request.ProductId
@@ -49,7 +49,7 @@ public class AdjustStockCommandHandler : IRequestHandler<AdjustStockCommand, int
         if (previousQuantity >= LowStockThreshold && newQuantity < LowStockThreshold)
             await PublishLowStockAlertAsync(stockLevel);
 
-        return stockLevel.Quantity;
+        return new AdjustStockResult(stockLevel.ProductId, stockLevel.WarehouseId, stockLevel.Quantity);
     }
 
     private async Task PublishLowStockAlertAsync(StockLevel stockLevel)

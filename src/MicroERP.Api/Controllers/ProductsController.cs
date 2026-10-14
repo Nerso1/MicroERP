@@ -84,7 +84,7 @@ public class ProductsController : ControllerBase
         if (id != command.ProductId)
             return BadRequest();
 
-        var quantity = await _mediator.Send(command);
-        return Ok(quantity);
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 }
