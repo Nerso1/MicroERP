@@ -4,8 +4,8 @@ using MicroERP.Application.Products.Commands.DeleteProduct;
 using MicroERP.Application.Products.Commands.UpdateProduct;
 using MicroERP.Application.Products.Queries.GetProductById;
 using MicroERP.Application.Products.Queries.GetProducts;
-using MicroERP.Application.StockLevels.Queries.GetStockByProduct;
 using MicroERP.Application.StockLevels.Commands.AdjustStock;
+using MicroERP.Application.StockLevels.Queries.GetStockByProduct;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MicroERP.Api.Controllers;
