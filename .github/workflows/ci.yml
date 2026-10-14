@@ -40,7 +40,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
 
       # Restore NuGet packages
       - name: Restore dependencies
@@ -50,6 +50,10 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      # Run every test without rebuilding application
-      - name: Test
-        run: dotnet test --no-build --configuration Release
+      # Fast tests with mocks - no Docker needed
+      - name: Unit tests
+        run: dotnet test tests/MicroERP.UnitTests --no-build --configuration Release
+
+      # SQL Server in Testcontainers - Docker is available on ubuntu-latest
+      - name: Integration tests
+        run: dotnet test tests/MicroERP.IntegrationTests --no-build --configuration Release
