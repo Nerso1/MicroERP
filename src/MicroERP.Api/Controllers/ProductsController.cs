@@ -4,6 +4,7 @@ using MicroERP.Application.Products.Commands.DeleteProduct;
 using MicroERP.Application.Products.Commands.UpdateProduct;
 using MicroERP.Application.Products.Queries.GetProductById;
 using MicroERP.Application.Products.Queries.GetProducts;
+using MicroERP.Application.StockLevels.Commands.AdjustStock;
 using MicroERP.Application.StockLevels.Queries.GetStockByProduct;
 using Microsoft.AspNetCore.Mvc;
 
@@ -73,6 +74,17 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> GetStock(int id)
     {
         var result = await _mediator.Send(new GetStockByProductQuery(id));
+        return Ok(result);
+    }
+
+    /// <summary>Adjusts the stock of a product in a warehouse by a positive or negative quantity.</summary>
+    [HttpPost("{id}/stock/adjustments")]
+    public async Task<IActionResult> AdjustStock(int id, [FromBody] AdjustStockCommand command)
+    {
+        if (id != command.ProductId)
+            return BadRequest();
+
+        var result = await _mediator.Send(command);
         return Ok(result);
     }
 }

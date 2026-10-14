@@ -26,6 +26,10 @@ public class GlobalExceptionHandlingMiddleware
         {
             await WriteProblemDetails(context, StatusCodes.Status404NotFound, ex.Message);
         }
+        catch (StockLevelNotFoundException ex)
+        {
+            await WriteProblemDetails(context, StatusCodes.Status404NotFound, ex.Message);
+        }
         catch (ValidationException ex)
         {
             var errors = ex.Errors
@@ -46,6 +50,10 @@ public class GlobalExceptionHandlingMiddleware
             await context.Response.WriteAsync(JsonSerializer.Serialize(problem));
         }
         catch (ConflictException ex)
+        {
+            await WriteProblemDetails(context, StatusCodes.Status409Conflict, ex.Message);
+        }
+        catch (InsufficientStockException ex)
         {
             await WriteProblemDetails(context, StatusCodes.Status409Conflict, ex.Message);
         }

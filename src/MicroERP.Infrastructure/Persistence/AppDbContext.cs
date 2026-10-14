@@ -37,6 +37,11 @@ public class AppDbContext : DbContext, IAppDbContext
         {
             return await base.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConflictException(
+                "The record was modified by another request. Reload it and try again.", ex);
+        }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
             throw new ConflictException(

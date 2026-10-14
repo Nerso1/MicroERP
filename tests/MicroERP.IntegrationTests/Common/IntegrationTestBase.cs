@@ -16,13 +16,20 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected HttpClient Client { get; }
 
+    protected FakeStockAlertPublisher AlertPublisher => _factory.AlertPublisher;
+
     // xUnit creates a new class instance per test, so this runs before every test.
-    public Task InitializeAsync() => ExecuteDbAsync(async db =>
+    public Task InitializeAsync()
     {
-        // Seeded warehouses are kept; products and stock levels start empty.
-        await db.StockLevels.ExecuteDeleteAsync();
-        await db.Products.ExecuteDeleteAsync();
-    });
+        AlertPublisher.Clear();
+
+        return ExecuteDbAsync(async db =>
+        {
+            // Seeded warehouses are kept; products and stock levels start empty.
+            await db.StockLevels.ExecuteDeleteAsync();
+            await db.Products.ExecuteDeleteAsync();
+        });
+    }
 
     public Task DisposeAsync() => Task.CompletedTask;
 
