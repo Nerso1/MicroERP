@@ -13,6 +13,7 @@ namespace MicroERP.Api.Controllers;
 /// <summary>Manages products.</summary>
 [ApiController]
 [Route("api/[controller]")]
+[Produces("application/json")]
 public class ProductsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -55,7 +56,9 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductCommand command)
     {
         if (id != command.Id)
-            return BadRequest();
+            return Problem(
+                detail: $"Route id ({id}) does not match body id ({command.Id}).",
+                statusCode: StatusCodes.Status400BadRequest);
 
         await _mediator.Send(command);
         return NoContent();
@@ -82,7 +85,9 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> AdjustStock(int id, [FromBody] AdjustStockCommand command)
     {
         if (id != command.ProductId)
-            return BadRequest();
+            return Problem(
+                detail: $"Route id ({id}) does not match body product id ({command.ProductId}).",
+                statusCode: StatusCodes.Status400BadRequest);
 
         var result = await _mediator.Send(command);
         return Ok(result);

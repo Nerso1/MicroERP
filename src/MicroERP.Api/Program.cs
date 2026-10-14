@@ -1,6 +1,7 @@
+using System.Diagnostics;
 using System.Reflection;
 using FluentValidation;
-using MicroERP.Api.Middleware;
+using MicroERP.Api.ExceptionHandling;
 using MicroERP.Application.Common.Behaviors;
 using MicroERP.Application.Products.Commands.CreateProduct;
 using MicroERP.Infrastructure;
@@ -17,6 +18,12 @@ builder.Services.AddValidatorsFromAssembly(typeof(CreateProductCommand).Assembly
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddProblemDetails(options =>
+    options.CustomizeProblemDetails = context =>
+        context.ProblemDetails.Extensions.TryAdd(
+            "traceId", Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -32,13 +39,14 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     await app.Services.ApplyMigrationsAsync();
 }
 
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.MapControllers();
 

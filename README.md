@@ -123,7 +123,7 @@ The dependency is inverted, so handlers can be unit-tested with a mocked context
 ```mermaid
 sequenceDiagram
     participant C as Client
-    participant M as GlobalExceptionHandlingMiddleware
+    participant M as UseExceptionHandler / GlobalExceptionHandler
     participant Ctrl as ProductsController
     participant V as ValidationBehavior
     participant H as Handler
@@ -200,7 +200,8 @@ A thin interface exists only so handlers can be unit-tested with mocks.
 **Validation in the MediatR pipeline.** A generic `ValidationBehavior` runs FluentValidation validators before every handler,
 so controllers and handlers contain no validation code. Fluent API (not Data Annotations) keeps `Domain` free of EF Core attributes.
 
-**One place for error handling.** `GlobalExceptionHandlingMiddleware` maps exceptions to RFC 7807 `ProblemDetails`.
+**One place for error handling.** `GlobalExceptionHandler` (`IExceptionHandler` + `AddProblemDetails`) maps exceptions to RFC 7807 `ProblemDetails`,
+so every error response - thrown or returned by a controller - has the same shape: `type`, `title`, `status`, `detail`, `traceId`.
 A duplicate SKU is enforced by a unique index in the database and surfaces as `409 Conflict`.
 
 **Manual pagination instead of OData.** `PagedResult<T>` with `Skip`/`Take` on `IQueryable` - OData would be too heavy for a handful of tables.
