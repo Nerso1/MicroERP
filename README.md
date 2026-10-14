@@ -18,6 +18,7 @@ unit + integration tests against a real SQL Server, Docker and CI.
 | Database | SQL Server 2022 |
 | Request handling | MediatR (Command/Query + Handler) |
 | Validation | FluentValidation (MediatR pipeline behavior) |
+| Messaging | Azure Service Bus (low-stock alerts) |
 | API docs | Swagger / OpenAPI (Swashbuckle, XML comments) |
 | Unit tests | xUnit, Moq, FluentAssertions |
 | Integration tests | WebApplicationFactory, Testcontainers (SQL Server) |
@@ -59,6 +60,11 @@ dotnet run --project src/MicroERP.Api --launch-profile https
 
 Open **https://localhost:5101/swagger**.
 
+Optional - send low-stock alerts to a real Azure Service Bus queue (without it alerts are only logged):
+
+```bash
+dotnet user-secrets set "AzureServiceBus:ConnectionString" "<connection-string>" --project src/MicroERP.Api
+
 ### Running tests
 
 ```bash
@@ -77,9 +83,10 @@ Integration tests start their own SQL Server container via Testcontainers - Dock
 | `PUT` | `/api/products/{id}` | Update product -> `204 No Content` |
 | `DELETE` | `/api/products/{id}` | Delete product -> `204 No Content` |
 | `GET` | `/api/products/{id}/stock` | Stock levels of a product across warehouses |
+| `POST` | `/api/products/{id}/stock/adjustments` | Change stock in one warehouse by `quantityChange` (+/-) -> `200` with the new quantity |
 
 Errors are returned as `application/problem+json` (RFC 7807):
-`400` validation errors, `404` not found, `409` duplicate SKU, `500` unexpected error.
+`400` validation errors, `404` not found, `409` duplicate SKU / insufficient stock / concurrent update, `500` unexpected error.
 
 ## Architecture
 
@@ -90,11 +97,13 @@ Dependencies point inwards - `Domain` knows nothing about EF Core, MediatR or AS
 ```mermaid
 flowchart TD
     Api["<b>MicroERP.Api</b><br/>Controllers, middleware, Program.cs"]
-    Infrastructure["<b>MicroERP.Infrastructure</b><br/>AppDbContext, Fluent API configurations, migrations"]
-    Application["<b>MicroERP.Application</b><br/>Commands, queries, handlers, validators, DTOs, IAppDbContext"]
+    Infrastructure["<b>MicroERP.Infrastructure</b><br/>AppDbContext, Fluent API configurations, migrations, Service Bus publisher"]
+    Application["<b>MicroERP.Application</b><br/>Commands, queries, handlers, validators, DTOs, IAppDbContext, IStockAlertPublisher"]
     Domain["<b>MicroERP.Domain</b><br/>Entities, domain exceptions"]
     Database[("SQL Server")]
+    ServiceBus[("Azure Service Bus<br/>queue: stock-alerts")]
     Infrastructure -. "EF Core" .-> Database
+    Infrastructure -. "low-stock alerts" .-> ServiceBus
 
     Api --> Application
     Api --> Infrastructure
@@ -170,7 +179,7 @@ All entities implement `IAuditable` - `CreatedAt` / `UpdatedAt` are set automati
 src/
 ├── MicroERP.Domain/          # Entities, IAuditable, domain exceptions - no external dependencies
 ├── MicroERP.Application/     # CQRS commands/queries, handlers, validators, DTOs, IAppDbContext
-├── MicroERP.Infrastructure/  # EF Core: AppDbContext, Fluent API configurations, migrations
+├── MicroERP.Infrastructure/  # EF Core (AppDbContext, configurations, migrations), Service Bus publisher
 └── MicroERP.Api/             # Controllers, exception middleware, Program.cs, Dockerfile
 tests/
 ├── MicroERP.UnitTests/         # Handlers and validators with mocked IAppDbContext
@@ -196,7 +205,16 @@ A duplicate SKU is enforced by a unique index in the database and surfaces as `4
 
 **Manual pagination instead of OData.** `PagedResult<T>` with `Skip`/`Take` on `IQueryable` - OData would be too heavy for a handful of tables.
 
-**Optimistic concurrency on stock.** `StockLevel.RowVersion` is a SQL Server `rowversion` column, preparing the ground for safe concurrent stock updates.
+**Optimistic concurrency on stock.** `StockLevel.RowVersion` is a SQL Server `rowversion` column. Two concurrent adjustments of the same stock level
+cannot both succeed - the second one gets `409 Conflict` instead of silently overwriting the first.
+
+**Low-stock alerts through Azure Service Bus.** When a stock adjustment drops the quantity below 10, the API publishes a `StockLowAlertMessage`
+to the `stock-alerts` queue. The alert is sent only when the threshold is crossed (12 -> 9, not again for 9 -> 7).
+`Application` only knows the `IStockAlertPublisher` interface; the Service Bus implementation lives in `Infrastructure`,
+and without a configured connection string a logging implementation is used, so the project runs without an Azure account.
+The alert is published after the stock change is saved, and a publishing failure is logged instead of failing the request
+(a retried request would adjust the stock twice). Known limitation: an alert can be lost if the process stops between saving and publishing -
+the full solution would be a transactional outbox, which is out of scope here.
 
 **Integration tests on real SQL Server (Testcontainers), not SQLite or InMemory.** SQLite does not support `rowversion`,
 behaves differently with `decimal` and text comparison, and does not test migrations. With Testcontainers only the connection string is replaced -
