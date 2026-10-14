@@ -35,6 +35,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Database__MigrateOnStartup: "true"
       ConnectionStrings__DefaultConnection: "Server=db,1433;Database=MicroERP;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      AzureServiceBus__ConnectionString: ${AZURE_SERVICEBUS_CONNECTION_STRING:-}
     depends_on:
       db:
         condition: service_healthy
