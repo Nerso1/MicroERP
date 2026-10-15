@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\MicroERP.Application\MicroERP.Application.csproj" />
     <ProjectReference Include="..\..\src\MicroERP.Domain\MicroERP.Domain.csproj" />
     <ProjectReference Include="..\..\src\MicroERP.Functions\MicroERP.Functions.csproj" />
+    <ProjectReference Include="..\..\src\MicroERP.Infrastructure\MicroERP.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using MicroERP.Application.Common;
 using MicroERP.Infrastructure.Persistence;
@@ -30,10 +31,11 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var fullyQualifiedNamespace = configuration["AzureServiceBus:FullyQualifiedNamespace"];
         var connectionString = configuration["AzureServiceBus:ConnectionString"];
 
         // Without Azure (docker compose, CI, fresh clone) alerts are only logged.
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(fullyQualifiedNamespace) && string.IsNullOrWhiteSpace(connectionString))
         {
             services.AddSingleton<IStockAlertPublisher, LoggingStockAlertPublisher>();
             return;
@@ -42,7 +44,10 @@ public static class DependencyInjection
         var queueName = configuration["AzureServiceBus:QueueName"]
             ?? throw new InvalidOperationException("AzureServiceBus:QueueName is not configured.");
 
-        services.AddSingleton(_ => new ServiceBusClient(connectionString));
+        // Identity-based connection (Managed Identity in Azure, developer account locally) takes precedence over SAS.
+        services.AddSingleton(_ => string.IsNullOrWhiteSpace(fullyQualifiedNamespace)
+            ? new ServiceBusClient(connectionString)
+            : new ServiceBusClient(fullyQualifiedNamespace, new DefaultAzureCredential()));
         services.AddSingleton<IStockAlertPublisher>(sp =>
             new ServiceBusStockAlertPublisher(sp.GetRequiredService<ServiceBusClient>(), queueName));
     }
