@@ -2,13 +2,17 @@
 
 ![CI](https://github.com/Nerso1/MicroERP/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/Nerso1/MicroERP/actions/workflows/codeql.yml/badge.svg)
+![Deploy](https://github.com/Nerso1/MicroERP/actions/workflows/deploy.yml/badge.svg)
 
 Warehouse & inventory REST API built with ASP.NET Core 10 and Clean Architecture.
 
 A portfolio project focused on code quality and Microsoft standards rather than feature count:
 layered architecture, CQRS-style request handling, validation pipeline, RFC 7807 error responses,
-unit + integration tests against a real SQL Server, Docker, CI, and an Azure Service Bus + Azure Functions integration
-with idempotent message processing.
+unit + integration tests against a real SQL Server, Docker, CI/CD to Azure with managed identities,
+and an Azure Service Bus + Azure Functions integration with idempotent message processing.
+
+**Live demo:** [Swagger UI on Azure App Service](https://microerp-api-dc-eugye3b4b2hddadb.centralus-01.azurewebsites.net/swagger) -
+the first request after a period of inactivity can take up to a minute (the serverless database resumes from auto-pause).
 
 ## Stack
 
@@ -24,6 +28,8 @@ with idempotent message processing.
 | API docs | Swagger / OpenAPI (Swashbuckle, XML comments) |
 | Unit tests | xUnit, Moq, FluentAssertions |
 | Integration tests | WebApplicationFactory, Testcontainers (SQL Server) |
+| Cloud | Azure App Service (Linux), Azure SQL Database (serverless), Azure Functions, Application Insights |
+| Identity | Managed identities (no keys or passwords in app settings), GitHub Actions OIDC (no deployment secrets) |
 | DevOps | Docker, docker compose, Azurite, GitHub Actions, CodeQL, Dependabot |
 
 ## Getting Started
@@ -66,11 +72,20 @@ dotnet run --project src/MicroERP.Api --launch-profile https
 
 Open **https://localhost:5101/swagger**.
 
-Optional - send low-stock alerts to a real Azure Service Bus queue (without it alerts are only logged):
+Optional - send low-stock alerts to a real Azure Service Bus queue (without it alerts are only logged), either with a SAS key:
 
 ```bash
 dotnet user-secrets set "AzureServiceBus:ConnectionString" "<connection-string>" --project src/MicroERP.Api
 ```
+
+or without any key, using your Azure CLI login (`az login`) and the **Azure Service Bus Data Sender** role on the queue -
+the same code path the API uses in Azure with its managed identity:
+
+```bash
+dotnet user-secrets set "AzureServiceBus:FullyQualifiedNamespace" "<namespace>.servicebus.windows.net" --project src/MicroERP.Api
+```
+
+When both are set, the identity-based connection wins.
 
 ### Option C - stock alert processing (Azure Function)
 
@@ -93,6 +108,10 @@ the function logs `Low stock: product ... in warehouse ... has ... units`.
 Messages sent while the function is not running wait in the queue and are processed on the next start.
 
 > `dotnet run` has to be started from the function's directory - with `--project` from the repository root
+> If Azurite is not reachable, the function stops at startup with a single `RequestFailedException`
+> instead of starting the Service Bus listener - messages stay in the queue.
+> On Windows, Docker Desktop occasionally starts the Azurite container without publishing its ports
+> (`docker compose ps` shows `10000-10002/tcp` without `0.0.0.0:...->`); `docker compose up -d --force-recreate azurite` fixes it.
 > the Functions SDK resolves its output directory relative to the current directory and fails.
 
 ### Running tests
@@ -118,6 +137,55 @@ Unit tests (including the Azure Function) need neither Docker nor Azure.
 
 Errors are returned as `application/problem+json` (RFC 7807):
 `400` validation errors, `404` not found, `409` duplicate SKU / insufficient stock / concurrent update, `500` unexpected error.
+
+## Azure Deployment
+
+```mermaid
+flowchart LR
+    GH["GitHub Actions<br/>Deploy workflow"]
+    subgraph Plan["App Service plan B1 - Linux, Central US"]
+        API["App Service<br/>microerp-api-dc"]
+        FN["Function App<br/>microerp-func-dc"]
+    end
+    SQL[("Azure SQL Database<br/>serverless")]
+    SB[("Service Bus - East US<br/>queue: stock-alerts")]
+    ST[("Storage account<br/>host storage + ProcessedMessages")]
+    AI["Application Insights"]
+
+    GH -- "OIDC: Website Contributor" --> API
+    GH -- "OIDC: Website Contributor" --> FN
+    API -- "MI: SQL user" --> SQL
+    API -- "MI: Data Sender" --> SB
+    SB -- "MI: Data Receiver" --> FN
+    FN -- "MI: Blob Data Owner,<br/>Table Data Contributor, Reader" --> ST
+    API -.-> AI
+    FN -.-> AI
+```
+
+### Identities and permissions
+
+| Identity | Type | Permissions |
+|---|---|---|
+| API (`microerp-api-dc`) | system-assigned | Azure SQL user with `db_datareader`, `db_datawriter`, `db_ddladmin` (migrations on startup); **Azure Service Bus Data Sender** on the `stock-alerts` queue |
+| Function (`microerp-func-dc`) | system-assigned | **Azure Service Bus Data Receiver** on the queue; **Storage Blob Data Owner**, **Storage Table Data Contributor** and **Reader** on its storage account |
+| `microerp-github-deploy` | user-assigned + federated credential | **Website Contributor** on the two apps only - can deploy code, cannot read data |
+
+No app setting contains a secret:
+
+| App | Setting | Value |
+|---|---|---|
+| API | `ConnectionStrings__DefaultConnection` | `Server=tcp:<server>.database.windows.net,1433;Database=microerp;Authentication=Active Directory Managed Identity;Encrypt=True;` |
+| API | `Database__MigrateOnStartup` | `true` |
+| API | `AzureServiceBus__FullyQualifiedNamespace` | `<namespace>.servicebus.windows.net` |
+| Function | `AzureWebJobsStorage__accountName` | `<storage-account>` |
+| Function | `AzureServiceBus__fullyQualifiedNamespace` | `<namespace>.servicebus.windows.net` |
+
+### Continuous deployment
+
+[`deploy.yml`](.github/workflows/deploy.yml) runs when the CI workflow succeeds on `main` and deploys exactly the commit CI tested;
+it can also be started manually. GitHub Actions signs in to Azure with OIDC: GitHub issues a short-lived token whose subject
+(`repo:Nerso1@<owner-id>/MicroERP@<repo-id>:ref:refs/heads/main`) must match the federated credential on the deployment identity.
+No password or key is stored in GitHub - only the non-secret client, tenant and subscription IDs.
 
 ## Architecture
 
@@ -289,19 +357,38 @@ if Table Storage is unavailable, the function fails closed instead of processing
 Table Storage needs no extra resource (the Functions host already uses a Storage Account), unlike Service Bus duplicate detection,
 which also only catches duplicate sends, not redeliveries.
 
+**Fail fast at function startup.** The deduplication table is created before the Service Bus listener starts.
+If Storage is unreachable, the host stops with one error and messages wait in the queue -
+otherwise every delivery would fail and a valid alert would end up in the dead-letter queue after 10 attempts.
+
+**Function on the API's App Service plan instead of Flex Consumption.** Flex Consumption (scale to zero, pay per execution) is the target,
+but the Azure free trial does not allow it. The function shares the B1 plan with the API (Always On keeps the Service Bus listener running),
+so it costs nothing extra; moving to Flex later is a hosting change only - the code already supports identity-based storage settings.
+Resources are in Central US because the trial blocks Azure SQL in East US; Service Bus stayed in East US, as only alerts cross regions.
+
 **The function does not reference `Application`.** It owns a copy of `StockLowAlertMessage`: sender and receiver share a JSON contract,
 not a class, and the function does not pull in EF Core, MediatR or FluentValidation.
 
-**Least-privilege queue access.** The API uses a SAS policy with only the Send right, the function one with only Listen -
-each key can be regenerated independently, and a leaked key cannot be used for anything else.
-Cloud deployment will replace the keys with managed identities.
+**Managed identities instead of keys.** In Azure nothing authenticates with a key or password: the API reaches SQL and Service Bus,
+and the function reaches Service Bus and Storage, with their managed identities and narrowly scoped roles
+(Send only for the API and Receive only for the function, granted on the queue rather than the whole namespace).
+The same code still accepts SAS connection strings for local development, and `DefaultAzureCredential` also picks up an `az login` session.
+
+**Narrowest role that works, verified in logs.** The Functions host's storage health check calls `Get Blob Service Properties`,
+a management-plane action that no *Storage ... Data* role includes. The documented least-privileged role, Storage Account Contributor,
+can also list the account keys; `Reader` on the storage account grants the required `blobServices/read` without key access.
+The failing operation was identified from Storage resource logs (`StorageBlobLogs`, `AuthorizationPermissionMismatch`), not by trial and error.
 
 **Integration tests on real SQL Server (Testcontainers), not SQLite or InMemory.** SQLite does not support `rowversion`,
 behaves differently with `decimal` and text comparison, and does not test migrations. With Testcontainers only the connection string is replaced -
 the same provider and the same migrations as in production.
 
-**Migrations on startup - opt-in.** Enabled with `Database:MigrateOnStartup=true` (set in `docker-compose.yml`), disabled by default.
-Convenient for a one-command demo; in a cloud deployment migrations will run as a separate pipeline step.
+**Migrations on startup - opt-in.** Enabled with `Database:MigrateOnStartup=true` in `docker-compose.yml` and in App Service, disabled by default.
+Simple for a single-instance demo; the cost is that the API's identity needs `db_ddladmin`.
+With multiple instances or stricter separation, migrations would run as a pipeline step (EF Core migration bundle) under a separate identity.
+
+**Swagger in every environment.** The API documentation is the entry point of the live demo.
+Once endpoints are protected with `[Authorize]` (Stage 3), Swagger exposes the shape of the API, not its data.
 
 **Authentication deferred to Stage 3.** A deliberate choice, not an omission. Dependencies flow through interfaces,
 so adding ASP.NET Identity + JWT means changing `AppDbContext` and `Program.cs` without touching business logic.
@@ -309,12 +396,12 @@ so adding ASP.NET Identity + JWT means changing `AppDbContext` and `Program.cs` 
 **Secrets.** Nothing secret is committed. Local Docker settings (SA password, optional Service Bus connection string) live in a git-ignored `.env`
 (`.env.example` is committed), the API's Service Bus connection string in User Secrets,
 and the function's settings in a git-ignored `local.settings.json` (`local.settings.example.json` is committed).
-Cloud deployment (Stage 2) will use App Service settings and managed identities instead.
+In Azure there are no secrets at all - apps use managed identities and GitHub Actions deploys through OIDC.
 
 ## Roadmap
 
 - [x] **Stage 1 - Foundation:** Clean Architecture, EF Core, CQRS, validation, tests, Docker, CI
-- [ ] **Stage 2 - Azure:** Service Bus (low-stock alerts), Azure Function, App Service + Azure SQL deployment
+- [x] **Stage 2 - Azure:** Service Bus (low-stock alerts), Azure Function, App Service + Azure SQL deployment
 - [ ] **Stage 3 - Auth:** ASP.NET Identity + JWT
 - [ ] **Stage 4 - Extras:** stock movements with transactions, Serilog, OpenTelemetry, rate limiting, CORS
 
