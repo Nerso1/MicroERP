@@ -1,3 +1,4 @@
+using Azure.Data.Tables;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using MicroERP.Functions.Processing;
 using Microsoft.Azure.Functions.Worker;
@@ -16,13 +17,12 @@ if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPLICATIONINSIGHT
         .UseAzureMonitorExporter();
 }
 
-builder.Services.AddSingleton(_ =>
-{
-    var table = ProcessedMessagesTableFactory.Create(builder.Configuration);
-    table.CreateIfNotExists();
-    return table;
-});
-
+builder.Services.AddSingleton(_ => ProcessedMessagesTableFactory.Create(builder.Configuration));
 builder.Services.AddSingleton<IProcessedMessageStore, TableProcessedMessageStore>();
 
-builder.Build().Run();
+var host = builder.Build();
+
+// Fail fast: without the deduplication table every message would fail and end up in the dead-letter queue.
+host.Services.GetRequiredService<TableClient>().CreateIfNotExists();
+
+host.Run();
