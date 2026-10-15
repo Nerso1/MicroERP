@@ -1,4 +1,3 @@
-using Azure.Data.Tables;
 using Azure.Monitor.OpenTelemetry.Exporter;
 using MicroERP.Functions.Processing;
 using Microsoft.Azure.Functions.Worker;
@@ -19,13 +18,11 @@ if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPLICATIONINSIGHT
 
 builder.Services.AddSingleton(_ =>
 {
-    var connectionString = builder.Configuration["AzureWebJobsStorage"]
-        ?? throw new InvalidOperationException("AzureWebJobsStorage is not configured.");
-
-    var table = new TableClient(connectionString, "ProcessedMessages");
+    var table = ProcessedMessagesTableFactory.Create(builder.Configuration);
     table.CreateIfNotExists();
     return table;
 });
+
 builder.Services.AddSingleton<IProcessedMessageStore, TableProcessedMessageStore>();
 
 builder.Build().Run();
