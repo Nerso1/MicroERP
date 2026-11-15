@@ -12,7 +12,7 @@ unit + integration tests against a real SQL Server, Docker, CI/CD to Azure with 
 and an Azure Service Bus + Azure Functions integration with idempotent message processing.
 
 **Live demo:** [Swagger UI on Azure App Service](https://microerp-api-dc-eugye3b4b2hddadb.centralus-01.azurewebsites.net/swagger) -
-the first request after a period of inactivity can take up to a minute (the serverless database resumes from auto-pause).
+the first request after a period of inactivity can take up to two minutes (the app starts on the Free plan and the serverless database resumes from auto-pause).
 
 ## Stack
 
@@ -143,8 +143,10 @@ Errors are returned as `application/problem+json` (RFC 7807):
 ```mermaid
 flowchart LR
     GH["GitHub Actions<br/>Deploy workflow"]
-    subgraph Plan["App Service plan B1 - Linux, Central US"]
+    subgraph PlanApi["App Service plan F1 (Free) - Linux, Central US"]
         API["App Service<br/>microerp-api-dc"]
+    end
+    subgraph PlanFn["Flex Consumption - Central US"]
         FN["Function App<br/>microerp-func-dc"]
     end
     SQL[("Azure SQL Database<br/>serverless")]
@@ -174,7 +176,7 @@ No app setting contains a secret:
 
 | App | Setting | Value |
 |---|---|---|
-| API | `ConnectionStrings__DefaultConnection` | `Server=tcp:<server>.database.windows.net,1433;Database=microerp;Authentication=Active Directory Managed Identity;Encrypt=True;` |
+| API | `ConnectionStrings__DefaultConnection` | `Server=tcp:<server>.database.windows.net,1433;Database=microerp;Authentication=Active Directory Managed Identity;Encrypt=True;Connect Timeout=60;` |
 | API | `Database__MigrateOnStartup` | `true` |
 | API | `AzureServiceBus__FullyQualifiedNamespace` | `<namespace>.servicebus.windows.net` |
 | Function | `AzureWebJobsStorage__accountName` | `<storage-account>` |
@@ -361,10 +363,12 @@ which also only catches duplicate sends, not redeliveries.
 If Storage is unreachable, the host stops with one error and messages wait in the queue -
 otherwise every delivery would fail and a valid alert would end up in the dead-letter queue after 10 attempts.
 
-**Function on the API's App Service plan instead of Flex Consumption.** Flex Consumption (scale to zero, pay per execution) is the target,
-but the Azure free trial does not allow it. The function shares the B1 plan with the API (Always On keeps the Service Bus listener running),
-so it costs nothing extra; moving to Flex later is a hosting change only - the code already supports identity-based storage settings.
-Resources are in Central US because the trial blocks Azure SQL in East US; Service Bus stayed in East US, as only alerts cross regions.
+**Near-zero hosting cost.** The API runs on the Free (F1) App Service plan, the function on Flex Consumption
+(scales to zero, pay per execution, within the monthly free grant) and the database on the Azure SQL free offer,
+which pauses instead of billing once the monthly allowance is used up. The trade-off is a cold start:
+after inactivity both the app and the database have to wake up, so EF Core retries transient SQL errors
+(`EnableRetryOnFailure`) and the connection string allows 60 s to connect.
+Resources are in Central US; Service Bus stayed in East US, as only alerts cross regions.
 
 **The function does not reference `Application`.** It owns a copy of `StockLowAlertMessage`: sender and receiver share a JSON contract,
 not a class, and the function does not pull in EF Core, MediatR or FluentValidation.
