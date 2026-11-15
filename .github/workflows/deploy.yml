@@ -87,3 +87,4 @@ jobs:
         with:
           app-name: ${{ env.FUNCTION_APP_NAME }}
           package: ./publish/functions
+          sku: flexconsumption
